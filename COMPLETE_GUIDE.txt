@@ -1,0 +1,269 @@
+
+================================================================================
+☁️ CLOUD SEGMENTATION PROJECT - COMPLETE GUIDE
+================================================================================
+Last Updated: January 12, 2026
+Total Size: 415 MB
+Location: Google Drive / CLOUD_SEG_COMPLETE
+
+================================================================================
+📁 COMPLETE PATH STRUCTURE
+================================================================================
+
+CLOUD_SEG_COMPLETE/
+│
+├── README.md                    ← Start here (project overview)
+├── QUICK_REFERENCE.md           ← Cheat sheet
+│
+│
+├── 01_SEGMENTATION_binary_cloud_vs_sky/     [269 MB] ⭐ MAIN TASK
+│   │
+│   ├── raw_data/                            [264 MB] RAW IMAGES
+│   │   ├── HYTA/                            32 images, variable resolution
+│   │   │   ├── images/                      Sky photos
+│   │   │   └── masks/                       Binary masks (white=cloud)
+│   │   │
+│   │   ├── Almeria/                         770 images, 512×512
+│   │   │   ├── images/                      Dark sky photos
+│   │   │   └── masks/                       0=ignore, 1=sky, 2+=cloud
+│   │   │
+│   │   └── SWIMSEG-2/                       1,013 images, 600×600
+│   │       ├── images/                      Bright sky photos
+│   │       └── GTmaps/                      ⚠️ INVERTED: 0=cloud, 255=sky
+│   │
+│   ├── unified_dataset/                     [1 MB] MANIFESTS
+│   │   ├── manifest_1815_images_binary.json      All paths for binary seg
+│   │   └── manifest_1815_images_multiclass.json  All paths for multiclass
+│   │
+│   ├── eda_analysis/                        [2.5 MB] EDA RESULTS
+│   │   ├── eda_all_1815_images_stats.json   ⭐ FULL STATS (load this!)
+│   │   ├── viz_distributions_by_source.png  Distribution plots
+│   │   └── viz_summary_statistics.png       Summary stats
+│   │
+│   ├── domain_analysis/                     [0.9 MB] DOMAIN SHIFT
+│   │   ├── umap_feature_space_clusters.png  Shows ALMERIA is different
+│   │   ├── umap_coordinates_and_outliers.json   Outlier list
+│   │   └── fft_frequency_signatures_by_source.png
+│   │
+│   ├── label_quality/                       [0.3 MB] BAD LABELS
+│   │   ├── suspicious_samples_185_flagged.json  ⭐ INSPECT THESE!
+│   │   └── cleanlab_confidence_distribution.png
+│   │
+│   ├── models/                              [empty] FOR YOUR TRAINED MODELS
+│   └── code/                                [empty] Symlink to 06_CODE
+│
+│
+├── 02_CLASSIFICATION_cloud_types_7class/    [<1 MB] COMPLETED BASELINE
+│   ├── EXPERIMENT_SUMMARY.json              Results: 60% max with RF
+│   └── README.md                            Details + next steps
+│
+│
+├── 03_DOMAIN_ADAPTATION_cross_camera/       [1 MB] PROBLEM ANALYSIS
+│   └── analysis/
+│       ├── DOMAIN_SHIFT_ANALYSIS.json       ⭐ Key finding: ALMERIA different
+│       ├── umap_shows_ALMERIA_separate.png  Visual proof
+│       └── fft_different_frequency_signatures.png
+│
+│
+├── 04_SAM_EXPERIMENTS_segment_anything/     [143 MB] SAM WEIGHTS
+│   ├── checkpoints/
+│   │   ├── sam_decoder_epoch_02.pth         48 MB - Early, least overfit
+│   │   ├── sam_decoder_epoch_06.pth         48 MB - Second best
+│   │   ├── sam_decoder_epoch_10.pth         48 MB - ⭐ BEST (49.2% IoU)
+│   │   ├── evaluation_results.json          Cross-dataset IoU scores
+│   │   ├── training_history.json            Loss curves
+│   │   └── README.md                        Explains each weight
+│   └── results/
+│       └── SAM_EXPERIMENT_SUMMARY.json      Why SAM failed
+│
+│
+├── 05_DOCUMENTATION/                        [2 MB] ALL FIGURES
+│   ├── figures/
+│   │   ├── fig_01_eda_distributions.png
+│   │   ├── fig_02_eda_summary_stats.png
+│   │   ├── fig_03_fft_frequency_analysis.png
+│   │   ├── fig_04_umap_feature_clusters.png
+│   │   └── fig_05_label_quality_cleanlab.png
+│   └── reports/
+│       └── *.md, *.json                     Old analysis reports
+│
+│
+└── 06_CODE/                                 [<1 MB] ALL SOURCE CODE
+    ├── training/
+    │   ├── training_utils.py                ⭐ K-fold, Dataset class
+    │   └── data_loader.py                   ⭐ Path conversion
+    ├── analysis_tools/
+    │   └── dataset_analysis.py              FFT, UMAP tools
+    └── preprocessing/
+        ├── lossless_preprocessing.py
+        └── smart_preprocessing_v3.py
+
+
+================================================================================
+🎯 WHAT TO USE FOR EACH TASK
+================================================================================
+
+TASK: Train segmentation model
+─────────────────────────────
+1. Load EDA:    01_SEGMENTATION/eda_analysis/eda_all_1815_images_stats.json
+2. Get splits:  06_CODE/training/training_utils.py → get_stratified_kfold_splits()
+3. Load data:   06_CODE/training/training_utils.py → CloudSegDataset class
+4. Images at:   01_SEGMENTATION/raw_data/{HYTA,Almeria,SWIMSEG-2}/
+
+TASK: Check suspicious labels before training
+─────────────────────────────────────────────
+1. Open:        01_SEGMENTATION/label_quality/suspicious_samples_185_flagged.json
+2. Look at top 30 entries
+3. Visually check those images in raw_data/
+
+TASK: Understand domain shift problem
+─────────────────────────────────────
+1. Read:        03_DOMAIN_ADAPTATION/analysis/DOMAIN_SHIFT_ANALYSIS.json
+2. See visual:  03_DOMAIN_ADAPTATION/analysis/umap_shows_ALMERIA_separate.png
+3. Key: ALMERIA is completely different from HYTA/SWIMSEG
+
+TASK: Use SAM weights
+─────────────────────
+1. Best weight: 04_SAM_EXPERIMENTS/checkpoints/sam_decoder_epoch_10.pth
+2. Load with:   torch.load('sam_decoder_epoch_10.pth')
+3. Note: These are DECODER weights only, need SAM encoder separately
+
+TASK: Run k-fold training
+─────────────────────────
+```python
+from training_utils import load_eda_data, get_stratified_kfold_splits
+
+images, masks = load_eda_data('01_SEGMENTATION/eda_analysis/eda_all_1815_images_stats.json')
+splits = get_stratified_kfold_splits(images, masks, n_splits=5)
+
+for split in splits:
+    train_idx = split['train_idx']
+    val_idx = split['val_idx']
+    # Create datasets and train
+```
+
+
+================================================================================
+⚠️ CRITICAL THINGS TO REMEMBER
+================================================================================
+
+1. MASK FORMATS ARE DIFFERENT PER SOURCE!
+   ─────────────────────────────────────
+   HYTA:    mask > 0 → cloud (simple)
+   ALMERIA: 0=ignore, 1=sky, 2+=cloud (need to handle ignore)
+   SWIMSEG: 0=cloud, 255=sky (INVERTED!)
+   
+   Use: convert_mask_to_binary(mask, source) from training_utils.py
+
+2. ALMERIA IS A DIFFERENT DOMAIN
+   ─────────────────────────────
+   - UMAP distance: 15+ (vs 0.59 between HYTA/SWIMSEG)
+   - Brightness: 41 (vs 123-148 for others)
+   - R/B ratio: 0.99 gray (vs 0.68 blue for others)
+   - Action: Use domain-balanced batches or train separately
+
+3. 185 SUSPICIOUS LABELS EXIST
+   ───────────────────────────
+   - 37% of sampled images have low confidence
+   - 50% from ALMERIA, 44% from SWIMSEG
+   - Inspect before training!
+
+4. UPDATE PATHS BEFORE USE
+   ───────────────────────
+   Edit: 06_CODE/training/data_loader.py
+   Change: MAC_PREFIX = '/your/actual/path/...'
+
+
+================================================================================
+🚀 STEP-BY-STEP: SETUP ON MAC SERVER
+================================================================================
+
+Step 1: Download from Google Drive
+──────────────────────────────────
+- Go to drive.google.com
+- Find folder: CLOUD_SEG_COMPLETE
+- Right-click → Download (will be ~415 MB zip)
+- Unzip to: /Users/YOUR_NAME/projects/CLOUD_SEG_COMPLETE/
+
+Step 2: Install dependencies
+────────────────────────────
+cd /Users/YOUR_NAME/projects/CLOUD_SEG_COMPLETE
+pip install numpy opencv-python torch torchvision scikit-learn albumentations matplotlib tqdm
+
+Step 3: Update paths
+────────────────────
+Open: 06_CODE/training/data_loader.py
+Find line: MAC_PREFIX = '/Users/YOUR_USERNAME/...'
+Change to your actual path
+
+Step 4: Test setup
+──────────────────
+python3 -c "
+import json
+import sys
+sys.path.append('06_CODE/training')
+from training_utils import load_eda_data, get_stratified_kfold_splits
+
+images, masks = load_eda_data('01_SEGMENTATION_binary_cloud_vs_sky/eda_analysis/eda_all_1815_images_stats.json')
+print(f'Loaded {len(images)} images')
+
+splits = get_stratified_kfold_splits(images, masks)
+print(f'Created {len(splits)} folds')
+print('✓ Setup OK!')
+"
+
+Step 5: Inspect suspicious labels (IMPORTANT!)
+──────────────────────────────────────────────
+python3 -c "
+import json
+with open('01_SEGMENTATION_binary_cloud_vs_sky/label_quality/suspicious_samples_185_flagged.json') as f:
+    data = json.load(f)
+print('Top 10 suspicious samples:')
+for item in data['top_issues'][:10]:
+    print(f"  {item['rank']}. {item['path'].split('/')[-1]} - {item['source']}")
+    print(f"     Cloud: {item['cloud_ratio']:.1%}, Predicted: {item['predicted_label']}")
+"
+
+Step 6: Start training
+──────────────────────
+# Your training script here
+# Use CloudSegDataset from training_utils.py
+# Use get_domain_balanced_weights() to handle ALMERIA
+
+
+================================================================================
+📊 KEY NUMBERS TO REMEMBER
+================================================================================
+
+Total images:        1,815
+├── HYTA:            32   (bright, blue sky)
+├── ALMERIA:         770  (dark, gray sky) ⚠️ DIFFERENT DOMAIN
+└── SWIMSEG:         1,013 (bright, blue sky)
+
+Splits:
+├── Train:           1,509
+├── Val:             178
+└── Test:            128
+
+Suspicious labels:   185 (37% of sample)
+ALMERIA-SWIMSEG gap: 15.17 UMAP distance (HUGE)
+
+Baselines:
+├── R/B Otsu:        73% IoU (simple, fast)
+├── SAM best:        49% IoU (complex, slow)
+├── Classification:  60% max (Random Forest, 7-class)
+└── Cross-dataset:   15-20% (transfer learning fails)
+
+
+================================================================================
+📞 IF STUCK
+================================================================================
+
+1. Check README.md in project root
+2. Check QUICK_REFERENCE.md for cheat sheet
+3. Check README.md in each subfolder
+4. Key insight files:
+   - 03_DOMAIN_ADAPTATION/analysis/DOMAIN_SHIFT_ANALYSIS.json
+   - 04_SAM_EXPERIMENTS/results/SAM_EXPERIMENT_SUMMARY.json
+
+================================================================================
